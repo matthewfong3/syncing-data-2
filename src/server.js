@@ -22,16 +22,32 @@ const io = socketio(app);
 
 const clientObjs = {};
 
+let socketID;
+
 io.sockets.on('connection', (sock) => {
   const socket = sock;
 
   socket.join('room1');
+
+  socket.on('join', () => {
+    const keys = Object.keys(clientObjs);
+    if (keys.length > 0) {
+      socketID = socket.id;
+      socket.broadcast.emit('getCanvasImage', clientObjs[keys[0]]);
+    }
+  });
+
+  socket.on('sendCanvasImage', (data) => {
+    // need to keep track of person who sent the request for the canvas snapshot
+    io.sockets.connected[socketID].emit('joined', data);
+  });
 
   socket.on('updateOnServer', (data) => {
     // if new client connected, add them to the client objects with their respective coords
     // else if they exist and they send new data, update it.
     if (!clientObjs[data.user]) {
       clientObjs[data.user] = data.coords;
+      clientObjs[data.user].user = data.user;
     } else if (clientObjs[data.user].lastUpdate < data.coords.lastUpdate) {
       clientObjs[data.user].coords = data.coords;
     }
